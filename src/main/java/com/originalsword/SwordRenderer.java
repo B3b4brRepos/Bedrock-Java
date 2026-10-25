@@ -128,7 +128,8 @@ public final class SwordRenderer {
 		Vector3f t = moved.sub(c);                       // translation of the sword centre, pixels
 		Matrix3f rot = new Matrix3f();
 		d.get3x3(rot);
-		rot.normalize();                                 // drop the bone scale, keep the rotation
+		Vector3f col = new Vector3f();                   // drop the bone scale, keep the rotation
+		for (int i = 0; i < 3; i++) { rot.getColumn(i, col); col.normalize(); rot.setColumn(i, col); }
 
 		float k = cfg.moveScale / 16f;
 		t.mul(k);
