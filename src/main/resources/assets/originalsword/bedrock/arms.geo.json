@@ -1,0 +1,425 @@
+{
+  "format_version": "1.21.0",
+  "minecraft:geometry": [
+    {
+      "description": {
+        "identifier": "geometry.mcs.fp.arms",
+        "texture_width": 64,
+        "texture_height": 64,
+        "visible_bounds_width": 80,
+        "visible_bounds_height": 80,
+        "visible_bounds_offset": [
+          0,
+          24,
+          8
+        ]
+      },
+      "bones": [
+        {
+          "name": "mcs_fp_scene",
+          "pivot": [
+            7.0,
+            9.15625,
+            13.05
+          ]
+        },
+        {
+          "name": "mcs_camera_comp",
+          "parent": "mcs_fp_scene",
+          "pivot": [
+            7.0,
+            9.15625,
+            13.05
+          ]
+        },
+        {
+          "name": "mcs_root",
+          "pivot": [
+            0,
+            0,
+            0
+          ],
+          "parent": "mcs_camera_comp"
+        },
+        {
+          "name": "mag_and_lefthand",
+          "parent": "mcs_root",
+          "pivot": [
+            0.04688,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "lefthand",
+          "parent": "mag_and_lefthand",
+          "pivot": [
+            -5.95312,
+            11,
+            0
+          ]
+        },
+        {
+          "name": "lefthand_pos",
+          "parent": "lefthand",
+          "pivot": [
+            0.04688,
+            0,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -7.95312,
+                0,
+                -2
+              ],
+              "size": [
+                4,
+                12,
+                4
+              ],
+              "uv": {
+                "north": {
+                  "uv": [
+                    36,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "east": {
+                  "uv": [
+                    40,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "south": {
+                  "uv": [
+                    44,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "west": {
+                  "uv": [
+                    32,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "up": {
+                  "uv": [
+                    36,
+                    48
+                  ],
+                  "uv_size": [
+                    4,
+                    4
+                  ]
+                },
+                "down": {
+                  "uv": [
+                    40,
+                    52
+                  ],
+                  "uv_size": [
+                    4,
+                    -4
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "gun_and_righthand",
+          "parent": "mcs_root",
+          "pivot": [
+            0.04688,
+            0,
+            0
+          ]
+        },
+        {
+          "name": "righthand",
+          "parent": "gun_and_righthand",
+          "pivot": [
+            6.04687,
+            11,
+            0
+          ]
+        },
+        {
+          "name": "righthand_pos",
+          "parent": "righthand",
+          "pivot": [
+            0.04688,
+            0,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                4.04688,
+                0,
+                -2
+              ],
+              "size": [
+                4,
+                12,
+                4
+              ],
+              "uv": {
+                "north": {
+                  "uv": [
+                    44,
+                    32
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "east": {
+                  "uv": [
+                    48,
+                    32
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "south": {
+                  "uv": [
+                    52,
+                    32
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "west": {
+                  "uv": [
+                    40,
+                    32
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "up": {
+                  "uv": [
+                    44,
+                    16
+                  ],
+                  "uv_size": [
+                    4,
+                    4
+                  ]
+                },
+                "down": {
+                  "uv": [
+                    48,
+                    20
+                  ],
+                  "uv_size": [
+                    4,
+                    -4
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "mcs_leftSleeve",
+          "parent": "lefthand_pos",
+          "pivot": [
+            0.04688,
+            0,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                -7.95312,
+                0,
+                -2
+              ],
+              "size": [
+                4,
+                12,
+                4
+              ],
+              "uv": {
+                "north": {
+                  "uv": [
+                    52,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "east": {
+                  "uv": [
+                    56,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "south": {
+                  "uv": [
+                    60,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "west": {
+                  "uv": [
+                    48,
+                    64
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "up": {
+                  "uv": [
+                    52,
+                    48
+                  ],
+                  "uv_size": [
+                    4,
+                    4
+                  ]
+                },
+                "down": {
+                  "uv": [
+                    56,
+                    52
+                  ],
+                  "uv_size": [
+                    4,
+                    -4
+                  ]
+                }
+              },
+              "inflate": 0.25
+            }
+          ]
+        },
+        {
+          "name": "mcs_rightSleeve",
+          "parent": "righthand_pos",
+          "pivot": [
+            0.04688,
+            0,
+            0
+          ],
+          "cubes": [
+            {
+              "origin": [
+                4.04688,
+                0,
+                -2
+              ],
+              "size": [
+                4,
+                12,
+                4
+              ],
+              "uv": {
+                "north": {
+                  "uv": [
+                    44,
+                    48
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "east": {
+                  "uv": [
+                    48,
+                    48
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "south": {
+                  "uv": [
+                    52,
+                    48
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "west": {
+                  "uv": [
+                    40,
+                    48
+                  ],
+                  "uv_size": [
+                    4,
+                    -12
+                  ]
+                },
+                "up": {
+                  "uv": [
+                    44,
+                    32
+                  ],
+                  "uv_size": [
+                    4,
+                    4
+                  ]
+                },
+                "down": {
+                  "uv": [
+                    48,
+                    36
+                  ],
+                  "uv_size": [
+                    4,
+                    -4
+                  ]
+                }
+              },
+              "inflate": 0.25
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

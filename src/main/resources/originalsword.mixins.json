@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.originalsword.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "plugin": "com.originalsword.mixin.OriginalSwordMixinPlugin",
+  "client": [
+    "FirstPersonHandsMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

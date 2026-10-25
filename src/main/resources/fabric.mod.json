@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "originalsword",
+  "version": "${version}",
+  "name": "OriginalSword",
+  "description": "First-person sword animations (draw, 4-hit combo, inspect) ported from the Bedrock OriginalSword pack.",
+  "authors": ["Kyy x Tacz (original Bedrock pack)"],
+  "license": "MIT (code); original authors (assets)",
+  "icon": "assets/originalsword/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.originalsword.OriginalSwordClient"]
+  },
+  "mixins": [
+    { "config": "originalsword.mixins.json", "environment": "client" }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

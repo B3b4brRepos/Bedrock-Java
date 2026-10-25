@@ -1,0 +1,37 @@
+{
+  "sword.swing1": {
+    "sounds": [
+      "originalsword:sword/sword_swing1"
+    ]
+  },
+  "sword.swing2": {
+    "sounds": [
+      "originalsword:sword/sword_swing2"
+    ]
+  },
+  "sword.swing3": {
+    "sounds": [
+      "originalsword:sword/sword_swing3"
+    ]
+  },
+  "sword.strong": {
+    "sounds": [
+      "originalsword:sword/sword_shoot"
+    ]
+  },
+  "sword.draw": {
+    "sounds": [
+      "originalsword:sword/sword_draw"
+    ]
+  },
+  "sword.put_away": {
+    "sounds": [
+      "originalsword:sword/sword_put_away"
+    ]
+  },
+  "sword.inspect": {
+    "sounds": [
+      "originalsword:sword/sword_inspect"
+    ]
+  }
+}
