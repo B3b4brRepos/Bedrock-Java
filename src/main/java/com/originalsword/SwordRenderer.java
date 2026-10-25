@@ -4,13 +4,14 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.originalsword.bedrock.BonePose;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -29,8 +30,16 @@ public final class SwordRenderer {
 			Items.WOODEN_SWORD, Items.STONE_SWORD, Items.IRON_SWORD,
 			Items.GOLDEN_SWORD, Items.DIAMOND_SWORD, Items.NETHERITE_SWORD};
 	private static final String SWORD_BONE = "bone";
-	/** Where vanilla holds the item in view space (blocks); rotations pivot around here. */
-	private static final Vector3f PIVOT = new Vector3f(0.56f, -0.45f, -0.7f);
+	private static final String[] TEX = {"wooden", "stone", "iron", "golden", "diamond", "netherite"};
+	private static final int FULL_BRIGHT = 15728880;
+
+	// Idle placement in view space (model pixels, camera at the origin looking down -z), fitted to the
+	// original add-on's idle pose: sword local -> view = T(SW_T) Rx(TILT) Ry(YAW) Rz(ROLL) T(-centre).
+	private static final float TILT = -0.626f, ROLL = -0.836f, YAW = -0.196f;
+	private static final Vector3f SW_T = new Vector3f(1.843f, -0.735f, -24.562f);
+	// Forearm: view = T(ARM_T) Rz(a) Ry(b) Rx(c) T(-6.04688, 0, 0)
+	private static final Vector3f ARM_T = new Vector3f(2.588f, -6.405f, -17.517f);
+	private static final float ARM_A = 2.15f, ARM_B = -1.363f, ARM_C = 2.037f;
 
 	private static SwordAssets assets;
 	private static SwordAnimator animator;
@@ -41,7 +50,9 @@ public final class SwordRenderer {
 
 	/** Result of the last {@link #frame}. */
 	public static boolean active;
-	private static final Matrix4f deltaRight = new Matrix4f(), deltaLeft = new Matrix4f();
+	/** Sword-local motion relative to idle (model pixels). */
+	private static final Matrix4f motion = new Matrix4f();
+	private static Vector3f swordCentre = new Vector3f();
 
 	private SwordRenderer() {}
 
@@ -87,7 +98,7 @@ public final class SwordRenderer {
 		}
 	}
 
-	/** Advances the animation and computes this frame's sword delta. Call once per rendered frame. */
+	/** Advances the animation and computes this frame's motion. Call once per rendered frame. */
 	public static void frame(LocalPlayer player) {
 		active = false;
 		if (assets == null) return;
@@ -111,58 +122,69 @@ public final class SwordRenderer {
 		animator.update(dt, item, edge, quiet);
 		if (item == 0) return;
 
+		assets.sword.xyzOrder = cfg.xyzOrder;
 		Map<String, BonePose> cur = animator.pose();
 		Map<String, BonePose> idle = new HashMap<>();
 		assets.anims.get("static_idle").apply(idle, 0);
-
 		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, cfg.rotSign, cfg.staticRotSign, cfg.posSign);
 		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, cfg.rotSign, cfg.staticRotSign, cfg.posSign);
 		Matrix4f cm = mc.get(SWORD_BONE), rm = mr.get(SWORD_BONE);
 		if (cm == null || rm == null) return;
 
-		Vector3f c = assets.sword.centerOf(SWORD_BONE);
-		rm.transformPosition(c);                         // rest centre of the sword, model pixels
-		Matrix4f d = new Matrix4f(cm).mul(new Matrix4f(rm).invert());
-		Vector3f moved = new Vector3f(c);
-		d.transformPosition(moved);
-		Vector3f t = moved.sub(c);                       // translation of the sword centre, pixels
-		Matrix3f rot = new Matrix3f();
-		d.get3x3(rot);
-		Vector3f col = new Vector3f();                   // drop the bone scale, keep the rotation
-		for (int i = 0; i < 3; i++) { rot.getColumn(i, col); col.normalize(); rot.setColumn(i, col); }
-
-		float k = cfg.moveScale / 16f;
-		t.mul(k);
-		float len = t.length();
-		if (len > 1.2f) t.mul(1.2f / len);
-
-		float[] v = cfg.viewSign;
-		t.mul(v[0], v[1], v[2]);
-		Matrix3f vs = new Matrix3f().scaling(v[0], v[1], v[2]);
-		Matrix3f r = new Matrix3f(vs).mul(rot).mul(vs);
-
-		build(deltaRight, r, t, 1);
-		build(deltaLeft, r, t, -1);
+		// motion of the sword expressed in its own frame: idle -> now
+		motion.set(rm).invert().mul(cm);
+		if (cfg.moveScale != 1.0f) {
+			Vector3f tr = motion.getTranslation(new Vector3f()).mul(cfg.moveScale);
+			motion.setTranslation(tr);
+		}
+		swordCentre = assets.sword.centerOf(SWORD_BONE);
 		active = true;
 	}
 
-	/** side = 1 for the right-hand side of the screen, -1 for the left (mirrored). */
-	private static void build(Matrix4f out, Matrix3f r, Vector3f t, int side) {
-		Matrix3f rr = new Matrix3f(r);
-		Vector3f tt = new Vector3f(t);
-		Vector3f pv = new Vector3f(PIVOT);
-		if (side < 0) {
-			Matrix3f m = new Matrix3f().scaling(-1, 1, 1);
-			rr = new Matrix3f(m).mul(r).mul(m);
-			tt.x = -tt.x;
-			pv.x = -pv.x;
-		}
-		out.identity().translate(tt).translate(pv).mul(new Matrix4f(rr)).translate(-pv.x, -pv.y, -pv.z);
+	private static Matrix4f swordPlacement() {
+		return new Matrix4f().translate(SW_T).rotateX(TILT).rotateY(YAW).rotateZ(ROLL)
+				.translate(-swordCentre.x, -swordCentre.y, -swordCentre.z);
 	}
 
-	/** Pushes the stack and applies this frame's sword motion; the caller pops it afterwards. */
-	public static void applyTo(PoseStack ps, boolean rightSide) {
+	private static Matrix4f armPlacement() {
+		return new Matrix4f().translate(ARM_T).rotateZ(ARM_A).rotateY(ARM_B).rotateX(ARM_C)
+				.translate(-6.04688f, 0, 0);
+	}
+
+	/** Draws the Bedrock sword (and arm) for one hand, in place of vanilla's item. */
+	public static void draw(PoseStack ps, SubmitNodeCollector collector, LocalPlayer player, ItemStack stack,
+							boolean rightSide, int light) {
+		Config cfg = Config.current;
+		int item = itemCode(stack);
+		if (item == 0) return;
+		Matrix4f p = swordPlacement();
+		Matrix4f swordM = new Matrix4f(p).mul(motion);                     // local -> L -> place
+		Matrix4f dv = new Matrix4f(p).mul(motion).mul(new Matrix4f(p).invert());   // same motion, in view space
+		Matrix4f armM = new Matrix4f(dv).mul(armPlacement());
+
+		Map<String, Matrix4f> swordMats = new HashMap<>();
+		swordMats.put(SWORD_BONE, swordM);
+		Map<String, Matrix4f> armMats = new HashMap<>();
+		armMats.put("righthand_pos", armM);
+		armMats.put("mcs_rightSleeve", armM);
+
+		Identifier tex = Identifier.fromNamespaceAndPath(OriginalSwordClient.MOD_ID,
+				"textures/sword/sword_" + TEX[item - 1] + ".png");
+		float[] rs = cfg.staticRotSign;
+
 		ps.pushPose();
-		((Matrix4f) ps.last().pose()).mul(rightSide ? deltaRight : deltaLeft);
+		if (!rightSide) ps.scale(-1f, 1f, 1f);
+		float s = cfg.scale / 16f;
+		ps.translate(cfg.offset[0] / 16f, cfg.offset[1] / 16f, cfg.offset[2] / 16f);
+		ps.scale(s, s, s);
+		collector.submitCustomGeometry(ps, RenderTypes.entityTranslucent(tex),
+				(pp, vc) -> assets.sword.render(vc, pp.pose(), swordMats, rs, light, b -> b.name.equals(SWORD_BONE)));
+		if (cfg.showArms) {
+			Identifier skin = player.getSkin().body().texturePath();
+			collector.submitCustomGeometry(ps, RenderTypes.entityTranslucent(skin),
+					(pp, vc) -> assets.arms.render(vc, pp.pose(), armMats, rs, light,
+							b -> b.name.equals("righthand_pos") || b.name.equals("mcs_rightSleeve")));
+		}
+		ps.popPose();
 	}
 }

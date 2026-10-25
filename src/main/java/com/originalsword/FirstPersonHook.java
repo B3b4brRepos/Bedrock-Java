@@ -3,21 +3,20 @@ package com.originalsword;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayDeque;
-
 /**
  * Entry points called from the ASM-injected code in FirstPersonHandsAndItemsRenderer.
  * frame(): once per frame, advances the animation.
- * handBegin/handEnd: wrap the per-hand item rendering and move held swords (main hand and offhand).
- * wholeBegin/wholeEnd: fallback used only if the per-hand method could not be found.
+ * handBegin(): at the start of the per-hand item renderer; if that hand holds a sword it draws the Bedrock
+ *              sword + arm and returns true so vanilla skips its own rendering of that hand. Other items
+ *              (shield, torch, empty hand...) still render normally.
+ * wholeBegin(): fallback if the per-hand method could not be found; draws the main-hand sword and skips vanilla.
  */
 public final class FirstPersonHook {
-	private static final Object NONE = new Object();
-	private static final ArrayDeque<Object> pushed = new ArrayDeque<>();
 	private static boolean failed;
 
 	private FirstPersonHook() {}
@@ -28,7 +27,6 @@ public final class FirstPersonHook {
 	}
 
 	public static void frame(Object[] args) {
-		pushed.clear();
 		if (failed) return;
 		try {
 			LocalPlayer player = Minecraft.getInstance().player;
@@ -37,49 +35,53 @@ public final class FirstPersonHook {
 		} catch (Throwable t) { fail(t); }
 	}
 
-	public static void handBegin(Object[] args) {
+	/** @return true to skip vanilla rendering of this hand */
+	public static boolean handBegin(Object[] args) {
 		try {
 			PoseStack ps = null;
+			SubmitNodeCollector collector = null;
 			InteractionHand hand = null;
 			HumanoidArm arm = null;
 			ItemStack stack = null;
+			Integer light = null;
 			for (Object o : args) {
 				if (ps == null && o instanceof PoseStack p) ps = p;
+				else if (collector == null && o instanceof SubmitNodeCollector c) collector = c;
 				else if (hand == null && o instanceof InteractionHand h) hand = h;
 				else if (arm == null && o instanceof HumanoidArm a) arm = a;
 				else if (stack == null && o instanceof ItemStack s) stack = s;
+				else if (light == null && o instanceof Integer i) light = i;
 			}
 			LocalPlayer player = Minecraft.getInstance().player;
-			if (failed || !SwordRenderer.active || ps == null || player == null) { pushed.push(NONE); return; }
+			if (failed || !SwordRenderer.active || ps == null || collector == null || player == null) return false;
 			boolean main = hand != InteractionHand.OFF_HAND;
 			ItemStack held = stack != null ? stack : (main ? player.getMainHandItem() : player.getOffhandItem());
-			if (!SwordRenderer.isSword(held)) { pushed.push(NONE); return; }
+			if (!SwordRenderer.isSword(held)) return false;
 			boolean right = arm != null ? arm == HumanoidArm.RIGHT : main == (player.getMainArm() == HumanoidArm.RIGHT);
-			SwordRenderer.applyTo(ps, right);
-			pushed.push(ps);
-		} catch (Throwable t) { pushed.push(NONE); fail(t); }
+			SwordRenderer.draw(ps, collector, player, held, right, light != null ? light : 15728880);
+			return true;
+		} catch (Throwable t) { fail(t); return false; }
 	}
 
-	public static void handEnd() { pop(); }
-
-	public static void wholeBegin(Object[] args) {
+	/** @return true to skip all vanilla first-person hand rendering */
+	public static boolean wholeBegin(Object[] args) {
 		frame(args);
 		try {
 			PoseStack ps = null;
-			for (Object o : args) if (o instanceof PoseStack p) { ps = p; break; }
+			SubmitNodeCollector collector = null;
+			Integer light = null;
+			for (Object o : args) {
+				if (ps == null && o instanceof PoseStack p) ps = p;
+				else if (collector == null && o instanceof SubmitNodeCollector c) collector = c;
+				else if (light == null && o instanceof Integer i) light = i;
+			}
 			LocalPlayer player = Minecraft.getInstance().player;
-			if (failed || !SwordRenderer.active || ps == null || player == null) { pushed.push(NONE); return; }
-			SwordRenderer.applyTo(ps, player.getMainArm() == HumanoidArm.RIGHT);
-			pushed.push(ps);
-		} catch (Throwable t) { pushed.push(NONE); fail(t); }
-	}
-
-	public static void wholeEnd() { pop(); }
-
-	private static void pop() {
-		Object o = pushed.poll();
-		if (o instanceof PoseStack p) {
-			try { p.popPose(); } catch (Throwable t) { fail(t); }
-		}
+			if (failed || !SwordRenderer.active || ps == null || collector == null || player == null) return false;
+			ItemStack held = player.getMainHandItem();
+			if (!SwordRenderer.isSword(held)) return false;
+			SwordRenderer.draw(ps, collector, player, held, player.getMainArm() == HumanoidArm.RIGHT,
+					light != null ? light : 15728880);
+			return true;
+		} catch (Throwable t) { fail(t); return false; }
 	}
 }

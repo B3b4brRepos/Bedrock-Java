@@ -20,6 +20,8 @@ import java.util.function.Predicate;
 public final class Geometry {
 	public final float texW, texH;
 	public final Map<String, Bone> bones = new LinkedHashMap<>();
+	/** false = rotation matrix Rz*Ry*Rx, true = Rx*Ry*Rz. */
+	public boolean xyzOrder = false;
 
 	public static final class Bone {
 		public String name, parent;
@@ -122,13 +124,9 @@ public final class Geometry {
 			px = bp.px * ps[0]; py = bp.py * ps[1]; pz = bp.pz * ps[2];
 			sx = bp.sx; sy = bp.sy; sz = bp.sz;
 		}
-		m = new Matrix4f(parent)
-				.translate(b.pivot[0] + px, b.pivot[1] + py, b.pivot[2] + pz)
-				.rotateZ((float) Math.toRadians(rz))
-				.rotateY((float) Math.toRadians(ry))
-				.rotateX((float) Math.toRadians(rx))
-				.scale(sx, sy, sz)
-				.translate(-b.pivot[0], -b.pivot[1], -b.pivot[2]);
+		m = new Matrix4f(parent).translate(b.pivot[0] + px, b.pivot[1] + py, b.pivot[2] + pz);
+		rotate(m, rx, ry, rz);
+		m.scale(sx, sy, sz).translate(-b.pivot[0], -b.pivot[1], -b.pivot[2]);
 		memo.put(name, m);
 		return m;
 	}
@@ -154,11 +152,9 @@ public final class Geometry {
 				Matrix4f cm = full;
 				if (c.rot != null) {
 					float[] pv = c.pivot != null ? c.pivot : new float[]{0, 0, 0};
-					cm = new Matrix4f(full).translate(pv[0], pv[1], pv[2])
-							.rotateZ((float) Math.toRadians(c.rot[2] * cubeRotSign[2]))
-							.rotateY((float) Math.toRadians(c.rot[1] * cubeRotSign[1]))
-							.rotateX((float) Math.toRadians(c.rot[0] * cubeRotSign[0]))
-							.translate(-pv[0], -pv[1], -pv[2]);
+					cm = new Matrix4f(full).translate(pv[0], pv[1], pv[2]);
+					rotate(cm, c.rot[0] * cubeRotSign[0], c.rot[1] * cubeRotSign[1], c.rot[2] * cubeRotSign[2]);
+					cm.translate(-pv[0], -pv[1], -pv[2]);
 				}
 				for (int i = 0; i < 8; i++) {
 					tmp.set((i & 4) == 0 ? x0 : x1, (i & 2) == 0 ? y0 : y1, (i & 1) == 0 ? z0 : z1);
@@ -174,6 +170,12 @@ public final class Geometry {
 				quad(vc, c.uv[5], corner, cm, nrm, 0, -1, 0, idx(0, 0, 1), idx(1, 0, 1), idx(1, 0, 0), idx(0, 0, 0), light);  // down
 			}
 		}
+	}
+
+	private void rotate(Matrix4f m, float rx, float ry, float rz) {
+		float x = (float) Math.toRadians(rx), y = (float) Math.toRadians(ry), z = (float) Math.toRadians(rz);
+		if (xyzOrder) m.rotateX(x).rotateY(y).rotateZ(z);
+		else m.rotateZ(z).rotateY(y).rotateX(x);
 	}
 
 	private static int idx(int x, int y, int z) { return x * 4 + y * 2 + z; }

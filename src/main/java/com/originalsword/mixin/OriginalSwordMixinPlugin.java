@@ -7,6 +7,8 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.InsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
+import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
@@ -21,9 +23,9 @@ import java.util.Set;
 /**
  * Signature-agnostic hooks into FirstPersonHandsAndItemsRenderer:
  *  - submitHandsWithItems: FirstPersonHook.frame(args) once per frame (advances the animation);
- *  - the per-hand method (PoseStack + InteractionHand + ItemStack): handBegin/handEnd around it so held swords
- *    in either hand are moved by the animation;
- *  - if no per-hand method exists in 26.3, wholeBegin/wholeEnd wrap the whole method instead.
+ *  - the per-hand method (PoseStack + InteractionHand + ItemStack): handBegin draws held swords (either hand)
+ *    and skips vanilla for that hand, so shields/torches/empty hands still render normally;
+ *  - if no per-hand method exists in 26.3, wholeBegin draws the main-hand sword and skips vanilla.
  * If submitHandsWithItems is not found it logs and does nothing, leaving vanilla untouched.
  */
 public final class OriginalSwordMixinPlugin implements IMixinConfigPlugin {
@@ -63,22 +65,21 @@ public final class OriginalSwordMixinPlugin implements IMixinConfigPlugin {
 		}
 
 		if (hands.isEmpty()) {
-			insertHead(main, "wholeBegin");
-			insertBeforeReturns(main, "wholeEnd");
+			insertHead(main, "wholeBegin", true);
 			System.out.println("[OriginalSword] Hooked " + target + "#" + main.name + main.desc
 					+ " (whole-view mode: per-hand method not found)");
 		} else {
-			insertHead(main, "frame");
+			insertHead(main, "frame", false);
 			for (MethodNode h : hands) {
-				insertHead(h, "handBegin");
-				insertBeforeReturns(h, "handEnd");
+				insertHead(h, "handBegin", true);
 				System.out.println("[OriginalSword] Hooked hand renderer " + target + "#" + h.name + h.desc);
 			}
 			System.out.println("[OriginalSword] Hooked " + target + "#" + main.name + main.desc);
 		}
 	}
 
-	private static void insertHead(MethodNode m, String hookMethod) {
+	/** Inserts hook(Object[] args); if cancellable, hook returns boolean and true makes the method return early. */
+	private static void insertHead(MethodNode m, String hookMethod, boolean cancellable) {
 		Type[] args = Type.getArgumentTypes(m.desc);
 		InsnList il = new InsnList();
 		pushInt(il, args.length);
@@ -93,18 +94,17 @@ public final class OriginalSwordMixinPlugin implements IMixinConfigPlugin {
 			il.add(new InsnNode(Opcodes.AASTORE));
 			slot += t.getSize();
 		}
-		il.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, hookMethod, "([Ljava/lang/Object;)V", false));
+		il.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, hookMethod,
+				cancellable ? "([Ljava/lang/Object;)Z" : "([Ljava/lang/Object;)V", false));
+		if (cancellable) {
+			LabelNode cont = new LabelNode();
+			il.add(new JumpInsnNode(Opcodes.IFEQ, cont));
+			il.add(new InsnNode(Opcodes.RETURN));
+			il.add(cont);
+		}
 		AbstractInsnNode first = m.instructions.getFirst();
 		if (first == null) m.instructions.add(il); else m.instructions.insertBefore(first, il);
 		m.maxStack = Math.max(m.maxStack, 8);
-	}
-
-	private static void insertBeforeReturns(MethodNode m, String hookMethod) {
-		for (AbstractInsnNode n : m.instructions.toArray()) {
-			if (n.getOpcode() == Opcodes.RETURN) {
-				m.instructions.insertBefore(n, new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, hookMethod, "()V", false));
-			}
-		}
 	}
 
 	private static void pushInt(InsnList il, int v) {

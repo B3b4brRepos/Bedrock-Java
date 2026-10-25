@@ -29,9 +29,11 @@ public final class Config {
 	public float[] offset = {0, 0, 0};
 
 	/** Sign multipliers for animated + static rotations and for animated positions. */
-	public float[] rotSign = {1, 1, 1};       // animated rotations
-	public float[] staticRotSign = {1, 1, 1}; // model (bone/cube) rotations
-	public float[] posSign = {1, 1, -1};
+	public float[] rotSign = {1, -1, 1};      // animated rotations
+	public float[] staticRotSign = {1, -1, 1}; // model (bone/cube) rotations
+	public float[] posSign = {1, 1, 1};
+	/** true = rotation order X,Y,Z (Rx*Ry*Rz); false = Z,Y,X. */
+	public boolean xyzOrder = true;
 	/** Multiplier on how far the sword travels during animations. */
 	public float moveScale = 1.0f;
 	/** Flips of the animation motion as seen on screen (x right, y up, z toward you). Use -1 to invert an axis. */
@@ -47,15 +49,16 @@ public final class Config {
 	/** Preset table: name -> {rotSign xyz, posSign xyz, mirrorX(0/1)}. */
 	private static float[] preset(String p) {
 		// {animRot xyz, pos xyz, mirrorX, staticRot xyz}
+		// {animRot xyz, pos xyz, mirrorX, staticRot xyz, xyzOrder(1/0)}
 		return switch (p == null ? "a" : p.toLowerCase()) {
-			case "b" -> new float[]{1, 1, 1, -1, 1, 1, 0, 1, 1, 1};
-			case "c" -> new float[]{-1, -1, 1, 1, 1, -1, 0, -1, -1, 1};
-			case "d" -> new float[]{-1, -1, 1, -1, 1, 1, 0, -1, -1, 1};
-			case "e" -> new float[]{1, -1, 1, -1, 1, 1, 0, 1, -1, 1};
-			case "f" -> new float[]{1, 1, 1, 1, 1, 1, 0, 1, 1, 1};
-			case "g" -> new float[]{-1, 1, -1, 1, 1, -1, 0, 1, 1, 1};
-			case "h" -> new float[]{1, 1, 1, 1, -1, -1, 0, 1, 1, 1};
-			default -> new float[]{1, 1, 1, 1, 1, -1, 0, 1, 1, 1};
+			case "b" -> new float[]{1, -1, 1, 1, 1, 1, 0, 1, -1, 1, 0};
+			case "c" -> new float[]{1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1};
+			case "d" -> new float[]{-1, 1, -1, 1, 1, 1, 0, -1, 1, -1, 1};
+			case "e" -> new float[]{1, 1, 1, 1, 1, -1, 0, 1, 1, 1, 0};
+			case "f" -> new float[]{-1, -1, 1, 1, 1, 1, 0, -1, -1, 1, 1};
+			case "g" -> new float[]{1, -1, 1, -1, 1, 1, 0, 1, -1, 1, 1};
+			case "h" -> new float[]{1, -1, 1, 1, -1, -1, 0, 1, -1, 1, 1};
+			default -> new float[]{1, -1, 1, 1, 1, 1, 0, 1, -1, 1, 1};
 		};
 	}
 
@@ -79,6 +82,7 @@ public final class Config {
 			c.posSign = new float[]{pr[3], pr[4], pr[5]};
 			c.mirrorX = pr[6] > 0.5f;
 			c.staticRotSign = new float[]{pr[7], pr[8], pr[9]};
+			c.xyzOrder = pr[10] > 0.5f;
 			if (o.has("scale")) c.scale = o.get("scale").getAsFloat();
 			if (o.has("moveScale")) c.moveScale = o.get("moveScale").getAsFloat();
 			if (o.has("viewSign")) c.viewSign = arr(o.getAsJsonArray("viewSign"));
@@ -88,6 +92,7 @@ public final class Config {
 			if (o.has("staticRotSign")) c.staticRotSign = arr(o.getAsJsonArray("staticRotSign"));
 			if (o.has("posSign")) c.posSign = arr(o.getAsJsonArray("posSign"));
 			if (o.has("mirrorX")) c.mirrorX = o.get("mirrorX").getAsBoolean();
+			if (o.has("xyzOrder")) c.xyzOrder = o.get("xyzOrder").getAsBoolean();
 			current = c;
 		} catch (Exception e) {
 			OriginalSwordClient.LOGGER.warn("Could not read originalsword.json, keeping previous settings", e);

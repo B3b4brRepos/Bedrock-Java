@@ -46,6 +46,7 @@ Models, animations, textures and sounds belong to the original pack authors; get
 If it is red, open the failed step and send the error text to Claude.
 
 
-## How it works now (v1.1)
-Vanilla draws the sword (texture, enchant glint, offhand, left-handed all work). The Bedrock animation only supplies *motion*: each frame the mod measures how far the animated sword bone moved from idle and applies that to the held sword, in either hand.
-In `config/originalsword.json`: `moveScale` (travel distance), `viewSign` (e.g. `[-1,1,1]` flips left/right of the motion), `preset` a-h for rotation conventions.
+## How it works (v1.2)
+The Bedrock sword and arm are drawn by the mod (idle pose fitted to the original add-on's look) and moved by the Bedrock bone animations. Vanilla's own sword for that hand is hidden; other offhand items (shield, torch...) render normally, and a sword in either hand animates (left one mirrored). Third-person is untouched (the original add-on just uses the vanilla hold pose there).
+
+`config/originalsword.json`: `preset` a-h (rotation conventions), `moveScale` (animation travel), `scale`, `offset` (x,y,z in model pixels), `showArms`, `xyzOrder`, plus `rotSign`/`staticRotSign`/`posSign` overrides.
