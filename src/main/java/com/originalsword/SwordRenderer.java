@@ -52,7 +52,8 @@ public final class SwordRenderer {
 	public static boolean active;
 	/** Sword-local motion relative to idle (model pixels). */
 	private static final Matrix4f motion = new Matrix4f();
-	private static final double TUNER_PERIOD = 3.2;
+	private static final Matrix4f motionArm = new Matrix4f();
+	private static final double TUNER_PERIOD = 2.6;
 	private static long tunerStart = 0;
 	private static int tunerSlot = -1;
 	private static boolean tunerEdge = false;
@@ -112,7 +113,6 @@ public final class SwordRenderer {
 
 		boolean down = Minecraft.getInstance().options.keyAttack.isDown();
 		boolean edge = down && !lastAttackDown;
-		if (Config.current.tuner) { edge = tunerEdge; tunerEdge = false; }
 		lastAttackDown = down;
 
 		double dt = lastNanos == 0 ? 0 : Math.min((now - lastNanos) / 1e9, 0.1);
@@ -122,25 +122,20 @@ public final class SwordRenderer {
 		int mainCode = itemCode(player.getMainHandItem());
 		int offCode = itemCode(player.getOffhandItem());
 		int item = cfg.enabled ? (mainCode != 0 ? mainCode : offCode) : 0;
-		boolean quiet = player.onGround() && player.getDeltaMovement().horizontalDistanceSqr() < 1.0E-4
+		boolean quiet = player.getDeltaMovement().horizontalDistanceSqr() < 0.004
 				&& !player.isUsingItem() && !down;
-		animator.update(dt, item, edge, quiet && !cfg.tuner);
+		animator.update(dt, item, edge, quiet);
 		if (item == 0) return;
 
 		// --- calibration: 96 conventions = 48 signed axis permutations x (ZYX | XYZ) rotation order ---
 		int conv = cfg.conv;
 		if (cfg.tuner) {
-			if (tunerStart == 0) tunerStart = now;
-			double el = (now - tunerStart) / 1e9;
-			int slot = (int) (el / TUNER_PERIOD);
-			conv = slot == 0 ? 0 : (slot - 1) % 96;
-			if (slot != tunerSlot) {
-				tunerSlot = slot;
-				if (slot >= 1) {
-					tunerEdge = true;
-					say("OriginalSword test " + conv + " / 96");
-				}
+			// every real attack press moves on to the next convention and shows its number
+			if (edge) {
+				tunerSlot = (tunerSlot + 1) % 96;
+				say("OriginalSword test " + tunerSlot + " / 96");
 			}
+			conv = Math.max(tunerSlot, 0);
 		}
 		conv = Math.floorMod(conv, 96);
 		assets.sword.xyzOrder = conv >= 48;
@@ -166,6 +161,25 @@ public final class SwordRenderer {
 		Vector3f mapped = w.transformPosition(restCentre, new Vector3f());
 		w.setTranslation(placed.sub(mapped));
 		motion.set(w).mul(delta).mul(new Matrix4f(w).invert());
+
+		// The forearm hangs off gun_and_righthand only: it must not inherit the sword's own spin/stretch (woopie).
+		motionArm.set(motion);
+		try {
+			assets.arms.xyzOrder = conv >= 48;
+			Map<String, Matrix4f> ac = assets.arms.computeMatrices(cur, one, one, one);
+			Map<String, Matrix4f> ar = assets.arms.computeMatrices(idle, one, one, one);
+			Matrix4f acm = ac.get("righthand_pos"), arm0 = ar.get("righthand_pos");
+			if (acm != null && arm0 != null) {
+				Matrix4f d2 = new Matrix4f(acm).mul(new Matrix4f(arm0).invert());
+				if (cfg.moveScale != 1.0f) d2.setTranslation(d2.getTranslation(new Vector3f()).mul(cfg.moveScale));
+				Matrix4f wa = convMatrix(conv % 48);
+				Vector3f anchor = new Vector3f(6.04688f, 0, 0);
+				Vector3f restA = arm0.transformPosition(anchor, new Vector3f());
+				Vector3f mappedA = wa.transformPosition(restA, new Vector3f());
+				wa.setTranslation(new Vector3f(ARM_T).sub(mappedA));
+				motionArm.set(wa).mul(d2).mul(new Matrix4f(wa).invert());
+			}
+		} catch (Throwable ignored) {}
 		swordCentre = assets.sword.centerOf(SWORD_BONE);
 		active = true;
 	}
@@ -234,7 +248,7 @@ public final class SwordRenderer {
 		if (item == 0) return;
 		Matrix4f p = swordPlacement();
 		Matrix4f swordM = new Matrix4f(motion).mul(p);                     // idle placement, then view-space motion
-		Matrix4f armM = new Matrix4f(motion).mul(armPlacement());
+		Matrix4f armM = new Matrix4f(motionArm).mul(armPlacement());
 
 		Map<String, Matrix4f> swordMats = new HashMap<>();
 		swordMats.put(SWORD_BONE, swordM);
