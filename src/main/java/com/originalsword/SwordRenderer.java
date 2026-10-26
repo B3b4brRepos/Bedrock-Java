@@ -132,13 +132,25 @@ public final class SwordRenderer {
 		if (cm == null || rm == null) return;
 
 		// motion of the sword expressed in its own frame: idle -> now
-		motion.set(rm).invert().mul(cm);
+		// model-space change idle -> now, carried into view space through the pack's camera transform
+		Matrix4f delta = new Matrix4f(cm).mul(new Matrix4f(rm).invert());
 		if (cfg.moveScale != 1.0f) {
-			Vector3f tr = motion.getTranslation(new Vector3f()).mul(cfg.moveScale);
-			motion.setTranslation(tr);
+			Vector3f tr = delta.getTranslation(new Vector3f()).mul(cfg.moveScale);
+			delta.setTranslation(tr);
 		}
+		Matrix4f w = camW();
+		motion.set(w).mul(delta).mul(new Matrix4f(w).invert());
 		swordCentre = assets.sword.centerOf(SWORD_BONE);
 		active = true;
+	}
+
+	/** Model space -> view space, as fitted to the original pack's idle frames (ZYX Bedrock rotations). */
+	private static Matrix4f camW() {
+		return new Matrix4f(
+				0.22196f, 0.93513f, 0.27616f, 0f,
+				-0.97506f, 0.21316f, 0.06189f, 0f,
+				-0.00099f, -0.28301f, 0.95912f, 0f,
+				1.63511f, 6.54189f, -24.44192f, 1f);
 	}
 
 	private static Matrix4f swordPlacement() {
@@ -158,9 +170,8 @@ public final class SwordRenderer {
 		int item = itemCode(stack);
 		if (item == 0) return;
 		Matrix4f p = swordPlacement();
-		Matrix4f swordM = new Matrix4f(p).mul(motion);                     // local -> L -> place
-		Matrix4f dv = new Matrix4f(p).mul(motion).mul(new Matrix4f(p).invert());   // same motion, in view space
-		Matrix4f armM = new Matrix4f(dv).mul(armPlacement());
+		Matrix4f swordM = new Matrix4f(motion).mul(p);                     // idle placement, then view-space motion
+		Matrix4f armM = new Matrix4f(motion).mul(armPlacement());
 
 		Map<String, Matrix4f> swordMats = new HashMap<>();
 		swordMats.put(SWORD_BONE, swordM);

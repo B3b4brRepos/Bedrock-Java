@@ -35,7 +35,7 @@ public final class Config {
 	/** true = rotation order X,Y,Z (Rx*Ry*Rz); false = Z,Y,X. */
 	public boolean xyzOrder = true;
 	/** Multiplier on how far the sword travels during animations. */
-	public float moveScale = 0.5f;
+	public float moveScale = 1.0f;
 	/** Flips of the animation motion as seen on screen (x right, y up, z toward you). Use -1 to invert an axis. */
 	public float[] viewSign = {1, 1, 1};
 	public boolean mirrorX = false;
@@ -59,7 +59,7 @@ public final class Config {
 			case "g" -> new float[]{1, -1, 1, -1, 1, 1, 0, 1, -1, 1, 1};
 			case "h" -> new float[]{1, -1, 1, 1, -1, -1, 0, 1, -1, 1, 1};
 			case "a" -> new float[]{1, -1, 1, 1, 1, 1, 0, 1, -1, 1, 1};
-			default -> new float[]{1, -1, -1, 1, -1, 1, 0, 1, -1, 1, 1};
+			default -> new float[]{1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0};
 		};
 	}
 
@@ -112,7 +112,7 @@ public final class Config {
 		o.addProperty("showArms", true);
 		o.addProperty("playSounds", true);
 		o.addProperty("preset", "i");
-		o.addProperty("moveScale", 0.5);
+		o.addProperty("moveScale", 1.0);
 		Files.createDirectories(FILE.getParent());
 		Files.writeString(FILE, GSON.toJson(o));
 	}
