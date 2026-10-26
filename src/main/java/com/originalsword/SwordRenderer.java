@@ -12,6 +12,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.joml.Matrix3f;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -56,7 +57,8 @@ public final class SwordRenderer {
 	private static final double TUNER_PERIOD = 2.6;
 	private static long tunerStart = 0;
 	private static int tunerSlot = -1;
-	private static boolean tunerEdge = false;
+	private static boolean tunerEdge = false, lastUseDown = false;
+	private static double tunerClock = 0;
 	private static Vector3f swordCentre = new Vector3f();
 
 	private SwordRenderer() {}
@@ -124,27 +126,36 @@ public final class SwordRenderer {
 		int item = cfg.enabled ? (mainCode != 0 ? mainCode : offCode) : 0;
 		boolean quiet = player.getDeltaMovement().horizontalDistanceSqr() < 0.004
 				&& !player.isUsingItem() && !down;
-		animator.update(dt, item, edge, quiet);
+		boolean autoEdge = tunerEdge;
+		tunerEdge = false;
+		animator.update(dt, item, edge || autoEdge, quiet);
 		if (item == 0) return;
 
 		// --- calibration: 96 conventions = 48 signed axis permutations x (ZYX | XYZ) rotation order ---
 		int conv = cfg.conv;
 		if (cfg.tuner) {
-			// every real attack press moves on to the next convention and shows its number
-			if (edge) {
-				tunerSlot = (tunerSlot + 1) % 96;
-				say("OriginalSword test " + tunerSlot + " / 96");
+			// swings loop by themselves; press SEC (use) to move to the next convention
+			boolean use = Minecraft.getInstance().options.keyUse.isDown();
+			if (use && !lastUseDown) {
+				tunerSlot = (tunerSlot + 1) % 98;
+				say("OriginalSword test " + tunerSlot + " / 98   (SEC = next)");
 			}
-			conv = Math.max(tunerSlot, 0);
+			lastUseDown = use;
+			if (tunerSlot < 0) { tunerSlot = 96; say("OriginalSword test 96 / 98   (SEC = next)"); }
+			conv = tunerSlot;
+			tunerClock += dt;
+			if (tunerClock >= 2.0 && animator.restingNow()) { tunerClock = 0; tunerEdge = true; }
 		}
-		conv = Math.floorMod(conv, 96);
-		assets.sword.xyzOrder = conv >= 48;
+		conv = Math.floorMod(conv, 98);
+		boolean legacy = conv >= 96;
+		assets.sword.xyzOrder = conv >= 48 && !legacy;
 		float[] one = {1, 1, 1};
+		float[] lsg = legacy ? new float[]{1, -1, 1} : one;
 		Map<String, BonePose> cur = animator.pose();
 		Map<String, BonePose> idle = new HashMap<>();
 		assets.anims.get("static_idle").apply(idle, 0);
-		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, one, one, one);
-		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, one, one, one);
+		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, lsg, lsg, one);
+		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, lsg, lsg, one);
 		Matrix4f cm = mc.get(SWORD_BONE), rm = mr.get(SWORD_BONE);
 		if (cm == null || rm == null) return;
 
@@ -155,6 +166,23 @@ public final class SwordRenderer {
 			delta.setTranslation(tr);
 		}
 		swordCentre = assets.sword.centerOf(SWORD_BONE);
+		swordCentre = assets.sword.centerOf(SWORD_BONE);
+		if (legacy) {
+			// build 1.1.0's motion maths: translation of the sword centre + rotation about the vanilla hold point
+			Vector3f c0 = rm.transformPosition(new Vector3f(swordCentre), new Vector3f());
+			Vector3f moved = delta.transformPosition(new Vector3f(c0), new Vector3f());
+			Vector3f tl = moved.sub(c0);
+			float len = tl.length();
+			if (len > 19.2f) tl.mul(19.2f / len);
+			Matrix3f r3 = new Matrix3f();
+			delta.get3x3(r3);
+			for (int ci = 0; ci < 3; ci++) { Vector3f col = r3.getColumn(ci, new Vector3f()).normalize(); r3.setColumn(ci, col); }
+			Vector3f pv = new Vector3f(8.96f, -7.2f, -11.2f);
+			motion.identity().translate(tl).translate(pv).mul(new Matrix4f(r3)).translate(-pv.x, -pv.y, -pv.z);
+			motionArm.set(motion);
+			active = true;
+			return;
+		}
 		Matrix4f w = convMatrix(conv % 48);
 		Vector3f restCentre = rm.transformPosition(assets.sword.centerOf(SWORD_BONE), new Vector3f());
 		Vector3f placed = swordPlacement0().transformPosition(assets.sword.centerOf(SWORD_BONE), new Vector3f());

@@ -94,6 +94,8 @@ public final class SwordAnimator {
 		if (idleWait > 0.5) deadline = life + (idleWait > 1.5 ? 8.0 : 2.0);
 	}
 
+	public boolean restingNow() { return kind == Kind.IDLE || kind == Kind.INSPECT_WAIT; }
+
 	public boolean isActive() { return kind != Kind.OFF; }
 
 	public int item() { return activeItem; }
