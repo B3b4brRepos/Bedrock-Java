@@ -137,25 +137,27 @@ public final class SwordRenderer {
 			// swings loop by themselves; press SEC (use) to move to the next convention
 			boolean use = Minecraft.getInstance().options.keyUse.isDown();
 			if (use && !lastUseDown) {
-				tunerSlot = (tunerSlot + 1) % 98;
-				say("OriginalSword test " + tunerSlot + " / 98   (SEC = next)");
+				tunerSlot = (tunerSlot + 1) % 100;
+				say("OriginalSword test " + tunerSlot + " / 100   (SEC = next)");
 			}
 			lastUseDown = use;
-			if (tunerSlot < 0) { tunerSlot = 96; say("OriginalSword test 96 / 98   (SEC = next)"); }
+			if (tunerSlot < 0) { tunerSlot = 98; say("OriginalSword test 98 / 100   (SEC = next)"); }
 			conv = tunerSlot;
 			tunerClock += dt;
-			if (tunerClock >= 2.0 && animator.restingNow()) { tunerClock = 0; tunerEdge = true; }
+			if (cfg.autoSwing && tunerClock >= 2.0 && animator.restingNow()) { tunerClock = 0; tunerEdge = true; }
 		}
-		conv = Math.floorMod(conv, 98);
-		boolean legacy = conv >= 96;
-		assets.sword.xyzOrder = conv >= 48 && !legacy;
+		conv = Math.floorMod(conv, 100);
+		boolean legacy = conv == 96 || conv == 97;
+		boolean fitted = conv >= 98;
+		assets.sword.xyzOrder = conv >= 48 && conv < 96;
 		float[] one = {1, 1, 1};
 		float[] lsg = legacy ? new float[]{1, -1, 1} : one;
+		float[] rsg = legacy ? lsg : (fitted ? (conv == 98 ? new float[]{1, -1, 1} : new float[]{-1, -1, -1}) : one);
 		Map<String, BonePose> cur = animator.pose();
 		Map<String, BonePose> idle = new HashMap<>();
 		assets.anims.get("static_idle").apply(idle, 0);
-		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, lsg, lsg, one);
-		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, lsg, lsg, one);
+		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, rsg, lsg, one);
+		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, rsg, lsg, one);
 		Matrix4f cm = mc.get(SWORD_BONE), rm = mr.get(SWORD_BONE);
 		if (cm == null || rm == null) return;
 
@@ -180,6 +182,24 @@ public final class SwordRenderer {
 			Vector3f pv = new Vector3f(8.96f, -7.2f, -11.2f);
 			motion.identity().translate(tl).translate(pv).mul(new Matrix4f(r3)).translate(-pv.x, -pv.y, -pv.z);
 			motionArm.set(motion);
+			active = true;
+			return;
+		}
+		if (fitted) {
+			// absolute Bedrock motion through the camera transform fitted to the original's idle: view = P * Mrest^-1 * Mcur
+			Matrix4f pp = swordPlacement0();
+			motion.set(pp).mul(new Matrix4f(rm).invert()).mul(cm).mul(new Matrix4f(pp).invert());
+			motionArm.set(motion);
+			try {
+				assets.arms.xyzOrder = false;
+				Map<String, Matrix4f> ac = assets.arms.computeMatrices(cur, rsg, one, one);
+				Map<String, Matrix4f> ar = assets.arms.computeMatrices(idle, rsg, one, one);
+				Matrix4f acm = ac.get("righthand_pos"), arm0 = ar.get("righthand_pos");
+				if (acm != null && arm0 != null) {
+					Matrix4f pa = armPlacement();
+					motionArm.set(pa).mul(new Matrix4f(arm0).invert()).mul(acm).mul(new Matrix4f(pa).invert());
+				}
+			} catch (Throwable ignored) {}
 			active = true;
 			return;
 		}
