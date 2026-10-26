@@ -19,7 +19,7 @@ public final class Config {
 	public boolean enabled = true;
 	public boolean showArms = true;
 	public boolean playSounds = true;
-	public String preset = "a";
+	public String preset = "i";
 
 	/** Extra uniform scale on top of 1/16. */
 	public float scale = 1.0f;
@@ -35,7 +35,7 @@ public final class Config {
 	/** true = rotation order X,Y,Z (Rx*Ry*Rz); false = Z,Y,X. */
 	public boolean xyzOrder = true;
 	/** Multiplier on how far the sword travels during animations. */
-	public float moveScale = 1.0f;
+	public float moveScale = 0.5f;
 	/** Flips of the animation motion as seen on screen (x right, y up, z toward you). Use -1 to invert an axis. */
 	public float[] viewSign = {1, 1, 1};
 	public boolean mirrorX = false;
@@ -50,7 +50,7 @@ public final class Config {
 	private static float[] preset(String p) {
 		// {animRot xyz, pos xyz, mirrorX, staticRot xyz}
 		// {animRot xyz, pos xyz, mirrorX, staticRot xyz, xyzOrder(1/0)}
-		return switch (p == null ? "a" : p.toLowerCase()) {
+		return switch (p == null ? "i" : p.toLowerCase()) {
 			case "b" -> new float[]{1, -1, 1, 1, 1, 1, 0, 1, -1, 1, 0};
 			case "c" -> new float[]{1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1};
 			case "d" -> new float[]{-1, 1, -1, 1, 1, 1, 0, -1, 1, -1, 1};
@@ -58,7 +58,8 @@ public final class Config {
 			case "f" -> new float[]{-1, -1, 1, 1, 1, 1, 0, -1, -1, 1, 1};
 			case "g" -> new float[]{1, -1, 1, -1, 1, 1, 0, 1, -1, 1, 1};
 			case "h" -> new float[]{1, -1, 1, 1, -1, -1, 0, 1, -1, 1, 1};
-			default -> new float[]{1, -1, 1, 1, 1, 1, 0, 1, -1, 1, 1};
+			case "a" -> new float[]{1, -1, 1, 1, 1, 1, 0, 1, -1, 1, 1};
+			default -> new float[]{1, -1, -1, 1, -1, 1, 0, 1, -1, 1, 1};
 		};
 	}
 
@@ -110,8 +111,8 @@ public final class Config {
 		o.addProperty("enabled", true);
 		o.addProperty("showArms", true);
 		o.addProperty("playSounds", true);
-		o.addProperty("preset", "a");
-		o.addProperty("moveScale", 1.0);
+		o.addProperty("preset", "i");
+		o.addProperty("moveScale", 0.5);
 		Files.createDirectories(FILE.getParent());
 		Files.writeString(FILE, GSON.toJson(o));
 	}
