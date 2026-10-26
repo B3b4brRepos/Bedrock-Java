@@ -36,6 +36,9 @@ public final class Config {
 	public boolean xyzOrder = true;
 	/** Multiplier on how far the sword travels during animations. */
 	public float moveScale = 1.0f;
+	/** Calibration mode: cycles through every axis convention automatically (see SwordRenderer). */
+	public boolean tuner = true;
+	public int conv = 0;
 	/** Flips of the animation motion as seen on screen (x right, y up, z toward you). Use -1 to invert an axis. */
 	public float[] viewSign = {1, 1, 1};
 	public boolean mirrorX = false;
@@ -93,6 +96,8 @@ public final class Config {
 			if (o.has("staticRotSign")) c.staticRotSign = arr(o.getAsJsonArray("staticRotSign"));
 			if (o.has("posSign")) c.posSign = arr(o.getAsJsonArray("posSign"));
 			if (o.has("mirrorX")) c.mirrorX = o.get("mirrorX").getAsBoolean();
+			if (o.has("tuner")) c.tuner = o.get("tuner").getAsBoolean();
+			if (o.has("conv")) c.conv = o.get("conv").getAsInt();
 			if (o.has("xyzOrder")) c.xyzOrder = o.get("xyzOrder").getAsBoolean();
 			current = c;
 		} catch (Exception e) {

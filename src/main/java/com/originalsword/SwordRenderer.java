@@ -52,6 +52,10 @@ public final class SwordRenderer {
 	public static boolean active;
 	/** Sword-local motion relative to idle (model pixels). */
 	private static final Matrix4f motion = new Matrix4f();
+	private static final double TUNER_PERIOD = 3.2;
+	private static long tunerStart = 0;
+	private static int tunerSlot = -1;
+	private static boolean tunerEdge = false;
 	private static Vector3f swordCentre = new Vector3f();
 
 	private SwordRenderer() {}
@@ -108,6 +112,7 @@ public final class SwordRenderer {
 
 		boolean down = Minecraft.getInstance().options.keyAttack.isDown();
 		boolean edge = down && !lastAttackDown;
+		if (Config.current.tuner) { edge = tunerEdge; tunerEdge = false; }
 		lastAttackDown = down;
 
 		double dt = lastNanos == 0 ? 0 : Math.min((now - lastNanos) / 1e9, 0.1);
@@ -119,26 +124,47 @@ public final class SwordRenderer {
 		int item = cfg.enabled ? (mainCode != 0 ? mainCode : offCode) : 0;
 		boolean quiet = player.onGround() && player.getDeltaMovement().horizontalDistanceSqr() < 1.0E-4
 				&& !player.isUsingItem() && !down;
-		animator.update(dt, item, edge, quiet);
+		animator.update(dt, item, edge, quiet && !cfg.tuner);
 		if (item == 0) return;
 
-		assets.sword.xyzOrder = cfg.xyzOrder;
+		// --- calibration: 96 conventions = 48 signed axis permutations x (ZYX | XYZ) rotation order ---
+		int conv = cfg.conv;
+		if (cfg.tuner) {
+			if (tunerStart == 0) tunerStart = now;
+			double el = (now - tunerStart) / 1e9;
+			int slot = (int) (el / TUNER_PERIOD);
+			conv = slot == 0 ? 0 : (slot - 1) % 96;
+			if (slot != tunerSlot) {
+				tunerSlot = slot;
+				if (slot >= 1) {
+					tunerEdge = true;
+					say("OriginalSword test " + conv + " / 96");
+				}
+			}
+		}
+		conv = Math.floorMod(conv, 96);
+		assets.sword.xyzOrder = conv >= 48;
+		float[] one = {1, 1, 1};
 		Map<String, BonePose> cur = animator.pose();
 		Map<String, BonePose> idle = new HashMap<>();
 		assets.anims.get("static_idle").apply(idle, 0);
-		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, cfg.rotSign, cfg.staticRotSign, cfg.posSign);
-		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, cfg.rotSign, cfg.staticRotSign, cfg.posSign);
+		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, one, one, one);
+		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, one, one, one);
 		Matrix4f cm = mc.get(SWORD_BONE), rm = mr.get(SWORD_BONE);
 		if (cm == null || rm == null) return;
 
-		// motion of the sword expressed in its own frame: idle -> now
-		// model-space change idle -> now, carried into view space through the pack's camera transform
+		// model-space change idle -> now, carried into view space through a signed axis permutation
 		Matrix4f delta = new Matrix4f(cm).mul(new Matrix4f(rm).invert());
 		if (cfg.moveScale != 1.0f) {
 			Vector3f tr = delta.getTranslation(new Vector3f()).mul(cfg.moveScale);
 			delta.setTranslation(tr);
 		}
-		Matrix4f w = camW();
+		swordCentre = assets.sword.centerOf(SWORD_BONE);
+		Matrix4f w = convMatrix(conv % 48);
+		Vector3f restCentre = rm.transformPosition(assets.sword.centerOf(SWORD_BONE), new Vector3f());
+		Vector3f placed = swordPlacement0().transformPosition(assets.sword.centerOf(SWORD_BONE), new Vector3f());
+		Vector3f mapped = w.transformPosition(restCentre, new Vector3f());
+		w.setTranslation(placed.sub(mapped));
 		motion.set(w).mul(delta).mul(new Matrix4f(w).invert());
 		swordCentre = assets.sword.centerOf(SWORD_BONE);
 		active = true;
@@ -151,6 +177,43 @@ public final class SwordRenderer {
 				-0.97506f, 0.21316f, 0.06189f, 0f,
 				-0.00099f, -0.28301f, 0.95912f, 0f,
 				1.63511f, 6.54189f, -24.44192f, 1f);
+	}
+
+	/** Signed axis permutation number i (0..47), same enumeration order as the offline search. */
+	private static Matrix4f convMatrix(int i) {
+		int[][] perms = {{0,1,2},{0,2,1},{1,0,2},{1,2,0},{2,0,1},{2,1,0}};
+		int pm = i / 8, sg = i % 8;
+		float[] m = new float[9];
+		for (int r = 0; r < 3; r++) {
+			int bit = (sg >> (2 - r)) & 1;
+			m[r * 3 + perms[pm][r]] = bit == 0 ? 1f : -1f;
+		}
+		// row-major m -> JOML column-major
+		return new Matrix4f(m[0], m[3], m[6], 0, m[1], m[4], m[7], 0, m[2], m[5], m[8], 0, 0, 0, 0, 1);
+	}
+
+	private static Matrix4f swordPlacement0() {
+		return new Matrix4f().translate(SW_T).rotateX(TILT).rotateY(YAW).rotateZ(ROLL)
+				.translate(-swordCentre.x, -swordCentre.y, -swordCentre.z);
+	}
+
+	private static void say(String text) {
+		try {
+			Minecraft mc = Minecraft.getInstance();
+			Object comp = net.minecraft.network.chat.Component.literal(text);
+			for (java.lang.reflect.Method m : mc.player.getClass().getMethods()) {
+				if (m.getName().equals("displayClientMessage") && m.getParameterCount() == 2) {
+					m.invoke(mc.player, comp, true);
+					return;
+				}
+			}
+			for (java.lang.reflect.Method m : mc.player.getClass().getMethods()) {
+				if (m.getName().equals("sendSystemMessage") && m.getParameterCount() == 1) {
+					m.invoke(mc.player, comp);
+					return;
+				}
+			}
+		} catch (Throwable ignored) {}
 	}
 
 	private static Matrix4f swordPlacement() {
