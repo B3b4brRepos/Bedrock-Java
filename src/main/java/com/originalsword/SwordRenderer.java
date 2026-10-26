@@ -130,6 +130,8 @@ public final class SwordRenderer {
 		tunerEdge = false;
 		animator.update(dt, item, edge || autoEdge, quiet);
 		if (item == 0) return;
+		// at rest vanilla draws the sword; the Bedrock sword/arm only takes over for draw, swings and inspect
+		if (cfg.idleVanilla && animator.restingNow()) return;
 
 		// --- calibration: 96 conventions = 48 signed axis permutations x (ZYX | XYZ) rotation order ---
 		int conv = cfg.conv;
