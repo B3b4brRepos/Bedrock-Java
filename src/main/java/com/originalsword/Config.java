@@ -35,7 +35,7 @@ public final class Config {
 	/** true = rotation order X,Y,Z (Rx*Ry*Rz); false = Z,Y,X. */
 	public boolean xyzOrder = true;
 	/** Multiplier on how far the sword travels during animations. */
-	public float moveScale = 1.0f;
+	public float moveScale = 0.4f;
 	/** Calibration mode: cycles through every axis convention automatically (see SwordRenderer). */
 	public boolean tuner = true;
 	public boolean autoSwing = false;
@@ -89,7 +89,7 @@ public final class Config {
 			c.staticRotSign = new float[]{pr[7], pr[8], pr[9]};
 			c.xyzOrder = pr[10] > 0.5f;
 			if (o.has("scale")) c.scale = o.get("scale").getAsFloat();
-			if (o.has("moveScale")) c.moveScale = o.get("moveScale").getAsFloat();
+			if (o.has("travel")) c.moveScale = o.get("travel").getAsFloat();
 			if (o.has("viewSign")) c.viewSign = arr(o.getAsJsonArray("viewSign"));
 			if (o.has("camera")) c.camera = arr(o.getAsJsonArray("camera"));
 			if (o.has("offset")) c.offset = arr(o.getAsJsonArray("offset"));
@@ -119,7 +119,7 @@ public final class Config {
 		o.addProperty("showArms", true);
 		o.addProperty("playSounds", true);
 		o.addProperty("preset", "i");
-		o.addProperty("moveScale", 1.0);
+		o.addProperty("travel", 0.4);
 		Files.createDirectories(FILE.getParent());
 		Files.writeString(FILE, GSON.toJson(o));
 	}

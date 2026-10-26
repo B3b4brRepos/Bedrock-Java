@@ -156,6 +156,10 @@ public final class SwordRenderer {
 		Map<String, BonePose> cur = animator.pose();
 		Map<String, BonePose> idle = new HashMap<>();
 		assets.anims.get("static_idle").apply(idle, 0);
+		if (fitted && cfg.moveScale != 1.0f) {
+			for (BonePose bp : cur.values()) { bp.px *= cfg.moveScale; bp.py *= cfg.moveScale; bp.pz *= cfg.moveScale; }
+			for (BonePose bp : idle.values()) { bp.px *= cfg.moveScale; bp.py *= cfg.moveScale; bp.pz *= cfg.moveScale; }
+		}
 		Map<String, Matrix4f> mc = assets.sword.computeMatrices(cur, rsg, lsg, one);
 		Map<String, Matrix4f> mr = assets.sword.computeMatrices(idle, rsg, lsg, one);
 		Matrix4f cm = mc.get(SWORD_BONE), rm = mr.get(SWORD_BONE);
